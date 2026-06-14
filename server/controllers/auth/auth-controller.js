@@ -72,7 +72,13 @@ const loginUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.cookie("token", token, { httpOnly: true, secure: false }).json({
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    }).json({
       success: true,
       message: "Logged in successfully",
       user: {
@@ -132,7 +138,7 @@ const adminMiddleware = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, "CLIENT_SECRET_KEY");
+    const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded.role !== "admin") {
       return res.status(403).json({ success: false, message: "Admin access required" });
     }
@@ -186,11 +192,17 @@ const updateProfile = async (req, res) => {
         email: user.email,
         userName: user.userName,
       },
-      "CLIENT_SECRET_KEY",
+      JWT_SECRET,
       { expiresIn: "60m" }
     );
 
-    res.cookie("token", token, { httpOnly: true, secure: false }).json({
+    const isProduction = process.env.NODE_ENV === "production";
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
+      maxAge: 60 * 60 * 1000 // 60 minutes
+    }).json({
       success: true,
       message: "Profile updated successfully",
       user: {
