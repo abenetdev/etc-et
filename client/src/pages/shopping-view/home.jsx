@@ -1,233 +1,521 @@
-import { Button } from "@/components/ui/button";
-import bannerOne from "../../assets/banner-1.webp";
-import bannerTwo from "../../assets/banner-2.webp";
-import bannerThree from "../../assets/banner-3.webp";
-import {
-  Airplay,
-  BabyIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CloudLightning,
-  Heater,
-  Images,
-  Shirt,
-  ShirtIcon,
-  ShoppingBasket,
-  UmbrellaIcon,
-  WashingMachine,
-  WatchIcon,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchAllFilteredProducts,
-  fetchProductDetails,
-} from "@/store/shop/products-slice";
-import ShoppingProductTile from "@/components/shopping-view/product-tile";
 import { useNavigate } from "react-router-dom";
-import { addToCart, fetchCartItems } from "@/store/shop/cart-slice";
-import { useToast } from "@/components/ui/use-toast";
-import ProductDetailsDialog from "@/components/shopping-view/product-details";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ShoppingBasket,
+  Search,
+  ArrowRight,
+  Store,
+  Mail,
+  Facebook,
+  Instagram,
+  Youtube,
+  Twitter,
+  Zap,
+} from "lucide-react";
+import { fetchAllFilteredProducts } from "@/store/shop/products-slice";
+import { getHomeData } from "@/store/shop/home-slice";
 import { getFeatureImages } from "@/store/common-slice";
+import ShoppingProductTile from "@/components/shopping-view/product-tile";
+import { useCart } from "@/hooks/useCart";
+import { CATEGORIES } from "@/config";
 
-const categoriesWithIcon = [
-  { id: "men", label: "Men", icon: ShirtIcon },
-  { id: "women", label: "Women", icon: CloudLightning },
-  { id: "kids", label: "Kids", icon: BabyIcon },
-  { id: "accessories", label: "Accessories", icon: WatchIcon },
-  { id: "footwear", label: "Footwear", icon: UmbrellaIcon },
-];
+// ── Data ────────────────────────────────────────────────────────────────────
 
-const brandsWithIcon = [
-  { id: "nike", label: "Nike", icon: Shirt },
-  { id: "adidas", label: "Adidas", icon: WashingMachine },
-  { id: "puma", label: "Puma", icon: ShoppingBasket },
-  { id: "levi", label: "Levi's", icon: Airplay },
-  { id: "zara", label: "Zara", icon: Images },
-  { id: "h&m", label: "H&M", icon: Heater },
-];
-function ShoppingHome() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const { productList, productDetails } = useSelector(
-    (state) => state.shopProducts
-  );
-  const { featureImageList } = useSelector((state) => state.commonFeature);
 
-  const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
 
-  const { user } = useSelector((state) => state.auth);
+// ── Skeleton Components ──────────────────────────────────────────────────────
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  function handleNavigateToListingPage(getCurrentItem, section) {
-    sessionStorage.removeItem("filters");
-    const currentFilter = {
-      [section]: [getCurrentItem.id],
-    };
-
-    sessionStorage.setItem("filters", JSON.stringify(currentFilter));
-    navigate(`/shop/listing`);
-  }
-
-  function handleGetProductDetails(getCurrentProductId) {
-    dispatch(fetchProductDetails(getCurrentProductId));
-  }
-
-  function handleAddtoCart(getCurrentProductId) {
-    dispatch(
-      addToCart({
-        userId: user?.id,
-        productId: getCurrentProductId,
-        quantity: 1,
-      })
-    ).then((data) => {
-      if (data?.payload?.success) {
-        dispatch(fetchCartItems(user?.id));
-        toast({
-          title: "Product is added to cart",
-        });
-      }
-    });
-  }
-
-  useEffect(() => {
-    if (productDetails !== null) setOpenDetailsDialog(true);
-  }, [productDetails]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prevSlide) => (prevSlide + 1) % featureImageList.length);
-    }, 15000);
-
-    return () => clearInterval(timer);
-  }, [featureImageList]);
-
-  useEffect(() => {
-    dispatch(
-      fetchAllFilteredProducts({
-        filterParams: {},
-        sortParams: "price-lowtohigh",
-      })
-    );
-  }, [dispatch]);
-
-  console.log(productList, "productList");
-
-  useEffect(() => {
-    dispatch(getFeatureImages());
-  }, [dispatch]);
-
+function ProductCardSkeleton() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="relative w-full h-[600px] overflow-hidden">
-        {featureImageList && featureImageList.length > 0
-          ? featureImageList.map((slide, index) => (
-              <img
-                src={slide?.image}
-                key={index}
-                className={`${
-                  index === currentSlide ? "opacity-100" : "opacity-0"
-                } absolute top-0 left-0 w-full h-full object-cover transition-opacity duration-1000`}
-              />
-            ))
-          : null}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() =>
-            setCurrentSlide(
-              (prevSlide) =>
-                (prevSlide - 1 + featureImageList.length) %
-                featureImageList.length
-            )
-          }
-          className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/80"
-        >
-          <ChevronLeftIcon className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() =>
-            setCurrentSlide(
-              (prevSlide) => (prevSlide + 1) % featureImageList.length
-            )
-          }
-          className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/80"
-        >
-          <ChevronRightIcon className="w-4 h-4" />
-        </Button>
-      </div>
-      <section className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">
-            Shop by category
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {categoriesWithIcon.map((categoryItem) => (
-              <Card
-                onClick={() =>
-                  handleNavigateToListingPage(categoryItem, "category")
-                }
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-              >
-                <CardContent className="flex flex-col items-center justify-center p-6">
-                  <categoryItem.icon className="w-12 h-12 mb-4 text-primary" />
-                  <span className="font-bold">{categoryItem.label}</span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">Shop by Brand</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {brandsWithIcon.map((brandItem) => (
-              <Card
-                onClick={() => handleNavigateToListingPage(brandItem, "brand")}
-                className="cursor-pointer hover:shadow-lg transition-shadow"
-              >
-                <CardContent className="flex flex-col items-center justify-center p-6">
-                  <brandItem.icon className="w-12 h-12 mb-4 text-primary" />
-                  <span className="font-bold">{brandItem.label}</span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">
-            Feature Products
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {productList && productList.length > 0
-              ? productList.map((productItem) => (
-                  <ShoppingProductTile
-                    handleGetProductDetails={handleGetProductDetails}
-                    product={productItem}
-                    handleAddtoCart={handleAddtoCart}
-                  />
-                ))
-              : null}
-          </div>
-        </div>
-      </section>
-      <ProductDetailsDialog
-        open={openDetailsDialog}
-        setOpen={setOpenDetailsDialog}
-        productDetails={productDetails}
-      />
+    <div className="space-y-3">
+      <Skeleton className="h-[240px] w-full rounded-xl" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-10 w-full rounded-lg" />
     </div>
   );
 }
 
-export default ShoppingHome;
+function StoreCardSkeleton() {
+  return (
+    <div className="border rounded-xl p-5 space-y-3">
+      <Skeleton className="h-16 w-16 rounded-full mx-auto" />
+      <Skeleton className="h-4 w-2/3 mx-auto" />
+      <Skeleton className="h-3 w-1/2 mx-auto" />
+      <Skeleton className="h-9 w-full rounded-lg" />
+    </div>
+  );
+}
+
+// ── Section Title ────────────────────────────────────────────────────────────
+
+function SectionTitle({ title, subtitle, action, onAction }) {
+  return (
+    <div className="flex items-end justify-between mb-8">
+      <div>
+        <h2 className="text-2xl md:text-3xl font-bold">{title}</h2>
+        {subtitle && (
+          <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
+        )}
+      </div>
+      {action && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onAction}
+          className="gap-1 text-primary"
+        >
+          {action} <ArrowRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ── Store Card ───────────────────────────────────────────────────────────────
+
+function StoreCard({ store, onVisit }) {
+  return (
+    <Card className="hover:shadow-md transition-shadow duration-200 overflow-hidden">
+      {/* Mini banner */}
+      <div
+        className="h-16 w-full"
+        style={{
+          background: store.banner
+            ? `url(${store.banner}) center/cover`
+            : `linear-gradient(135deg, ${store.primaryColor || "#2563EB"}, ${store.secondaryColor || "#1E40AF"})`,
+        }}
+      />
+      <CardContent className="p-4 text-center -mt-8">
+        {/* Logo */}
+        <div
+          className="h-14 w-14 rounded-full border-4 border-white shadow-sm mx-auto overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: store.primaryColor || "#2563EB" }}
+        >
+          {store.logo ? (
+            <img
+              src={store.logo}
+              alt={store.storeName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="text-white font-bold text-xl">
+              {store.storeName?.[0]?.toUpperCase() || "S"}
+            </span>
+          )}
+        </div>
+
+        <h3 className="font-bold mt-3 text-sm">{store.storeName}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+          {store.businessCategory?.replace("-", " ") || "Store"}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          {store.productCount} product{store.productCount !== 1 ? "s" : ""}
+        </p>
+
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full mt-3 gap-1 text-xs"
+          onClick={() => onVisit(store.slug)}
+        >
+          <Store className="h-3 w-3" />
+          Visit Store
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
+export default function ShoppingHome() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { handleAddToCart } = useCart();
+
+  const { productList, isLoading: productsLoading } = useSelector(
+    (s) => s.shopProducts,
+  );
+  const { featureImageList } = useSelector((s) => s.commonFeature);
+  const {
+    newArrivals,
+    trendingProducts,
+    popularStores,
+    isLoading: homeLoading,
+  } = useSelector((s) => s.shopHome);
+
+  // ── Fetch all data ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    dispatch(getFeatureImages());
+    dispatch(getHomeData());
+    dispatch(
+      fetchAllFilteredProducts({
+        filterParams: {},
+        sortParams: "price-lowtohigh",
+      }),
+    );
+  }, [dispatch]);
+
+  // ── Banner auto-advance ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!featureImageList?.length) return;
+    const t = setInterval(
+      () => setCurrentSlide((p) => (p + 1) % featureImageList.length),
+      5000,
+    );
+    return () => clearInterval(t);
+  }, [featureImageList]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  function goToCategory(catId) {
+    sessionStorage.setItem("filters", JSON.stringify({ category: [catId] }));
+    navigate("/shop/listing");
+  }
+
+  function handleSearch(e) {
+    e.preventDefault();
+    if (!searchInput.trim()) return;
+    navigate(`/shop/search?keyword=${encodeURIComponent(searchInput.trim())}`);
+  }
+
+  async function handleAddtoCart(productId, totalStock) {
+    await handleAddToCart(productId, totalStock);
+  }
+
+  function handleSubscribe(e) {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubscribed(true);
+      setEmail("");
+    }
+  }
+
+  const slidePrev = () =>
+    setCurrentSlide(
+      (p) =>
+        (p - 1 + (featureImageList?.length || 1)) %
+        (featureImageList?.length || 1),
+    );
+  const slideNext = () =>
+    setCurrentSlide((p) => (p + 1) % (featureImageList?.length || 1));
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <main className="flex flex-col min-h-screen">
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          1. HERO SECTION
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="relative w-full min-h-[500px] md:h-[600px] overflow-hidden bg-slate-900">
+        {/* Slides */}
+        {featureImageList?.length > 0 ? (
+          featureImageList.map((slide, i) => (
+            <img
+              key={i}
+              src={slide?.image}
+              alt={`Banner ${i + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                i === currentSlide ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ))
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900" />
+        )}
+
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/50" />
+
+        {/* Content */}
+        <div className="relative z-10 h-full flex flex-col items-center justify-center px-4 text-center text-white">
+          <Badge className="mb-4 bg-white/20 text-white border-white/30 backdrop-blur-sm">
+            🛍️ Multi-Vendor Marketplace
+          </Badge>
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight max-w-3xl">
+            Discover Amazing <span className="text-blue-400">Products</span>{" "}
+            from Top Stores
+          </h1>
+          <p className="mt-4 text-lg text-white/80 max-w-xl">
+            Shop from thousands of verified vendors. Best prices, fast delivery.
+          </p>
+
+          {/* Search bar */}
+          <form
+            onSubmit={handleSearch}
+            className="mt-8 flex w-full max-w-lg gap-2"
+          >
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search products, stores..."
+                className="pl-10 h-12 bg-white text-black border-0 rounded-xl"
+              />
+            </div>
+            <Button type="submit" size="lg" className="h-12 px-6 rounded-xl">
+              Search
+            </Button>
+          </form>
+
+          {/* CTA */}
+          <div className="mt-6 flex gap-3">
+            <Button
+              size="lg"
+              onClick={() => navigate("/shop/listing")}
+              className="rounded-xl"
+            >
+              Shop Now
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-xl border-white/50 text-white hover:bg-white/10"
+              onClick={() => navigate("/shop/listing")}
+            >
+              Browse Stores
+            </Button>
+          </div>
+        </div>
+
+        {/* Arrows */}
+        {featureImageList?.length > 1 && (
+          <>
+            <button
+              onClick={slidePrev}
+              className="absolute top-1/2 left-4 -translate-y-1/2 z-20 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            <button
+              onClick={slideNext}
+              className="absolute top-1/2 right-4 -translate-y-1/2 z-20 p-2 rounded-full bg-white/20 hover:bg-white/40 text-white transition"
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
+
+            {/* Dots */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+              {featureImageList.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentSlide(i)}
+                  className={`h-2 rounded-full transition-all ${
+                    i === currentSlide ? "w-8 bg-white" : "w-2 bg-white/40"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          2. CATEGORIES
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <SectionTitle
+            title="Shop by Category"
+            subtitle="Find exactly what you're looking for"
+          />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-9 gap-3">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => goToCategory(cat.id)}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border hover:shadow-md hover:-translate-y-1 transition-all duration-200 group"
+              >
+                <div className={`p-3 rounded-xl ${cat.color}`}>
+                  <cat.icon className="h-5 w-5" />
+                </div>
+                <span className="text-xs font-semibold text-center leading-tight">
+                  {cat.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          3. FEATURED PRODUCTS
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <SectionTitle
+            title="Featured Products"
+            subtitle="Handpicked for you"
+            action="View All"
+            onAction={() => navigate("/shop/listing")}
+          />
+          {productsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : productList?.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {productList.slice(0, 8).map((p) => (
+                <ShoppingProductTile
+                  key={p._id}
+                  product={p}
+                  handleAddtoCart={handleAddtoCart}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <ShoppingBasket className="h-14 w-14 text-muted-foreground" />
+              <p className="text-muted-foreground">No products available yet</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          4. NEW ARRIVALS
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <SectionTitle
+            title="New Arrivals"
+            subtitle="Fresh products just added"
+            action="See All"
+            onAction={() => navigate("/shop/listing")}
+          />
+          {homeLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : newArrivals?.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {newArrivals.map((p) => (
+                <ShoppingProductTile
+                  key={p._id}
+                  product={p}
+                  handleAddtoCart={handleAddtoCart}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          5. POPULAR STORES
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {(homeLoading || popularStores?.length > 0) && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <SectionTitle
+              title="Popular Stores"
+              subtitle="Explore top vendors on our platform"
+            />
+            {homeLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <StoreCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {popularStores.map((store) => (
+                  <StoreCard
+                    key={store._id}
+                    store={store}
+                    onVisit={(slug) => navigate(`/store/${slug}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          6. TRENDING PRODUCTS
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {trendingProducts?.length > 0 && (
+        <section className="py-16 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <SectionTitle
+              title="Trending Now"
+              subtitle="Most loved by our customers"
+              action="View All"
+              onAction={() => navigate("/shop/listing")}
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {trendingProducts.map((p) => (
+                <ShoppingProductTile
+                  key={p._id}
+                  product={p}
+                  handleAddtoCart={handleAddtoCart}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          7. NEWSLETTER
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="container mx-auto px-4 text-center max-w-2xl">
+          <Mail className="h-12 w-12 mx-auto mb-4 opacity-80" />
+          <h2 className="text-3xl font-bold">Stay in the Loop</h2>
+          <p className="mt-3 text-blue-100">
+            Subscribe to get exclusive deals, new arrivals, and store updates
+            straight to your inbox.
+          </p>
+          {subscribed ? (
+            <div className="mt-8 inline-flex items-center gap-2 bg-white/20 rounded-xl px-6 py-3">
+              <Zap className="h-5 w-5" />
+              <span className="font-semibold">
+                You're subscribed! Thanks 🎉
+              </span>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubscribe}
+              className="mt-8 flex gap-2 max-w-md mx-auto"
+            >
+              <Input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="flex-1 bg-white/20 border-white/30 placeholder-blue-200 text-white focus-visible:ring-white"
+              />
+              <Button type="submit" variant="secondary" className="shrink-0">
+                Subscribe
+              </Button>
+            </form>
+          )}
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          8. FOOTER (now rendered globally in App.jsx)
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+    </main>
+  );
+}

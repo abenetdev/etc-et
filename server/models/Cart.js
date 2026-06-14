@@ -6,7 +6,7 @@ const CartSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-    },
+    }, // one to one relationship with user
     items: [
       {
         productId: {
@@ -14,6 +14,7 @@ const CartSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
+        // Many to Many relationship with product
         quantity: {
           type: Number,
           required: true,

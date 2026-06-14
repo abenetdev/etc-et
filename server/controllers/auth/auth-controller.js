@@ -2,6 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 
+const JWT_SECRET = process.env.JWT_SECRET || "CLIENT_SECRET_KEY";
+
 //register
 const registerUser = async (req, res) => {
   const { userName, email, password } = req.body;
@@ -54,18 +56,20 @@ const loginUser = async (req, res) => {
     if (!checkPasswordMatch)
       return res.json({
         success: false,
-        message: "Incorrect password! Please try again",
+        message: "Incorrect Email or Password! Please try again",
       });
+
+    const userId = checkUser._id.toString();
 
     const token = jwt.sign(
       {
-        id: checkUser._id,
+        id: userId,
         role: checkUser.role,
         email: checkUser.email,
         userName: checkUser.userName,
       },
-      "CLIENT_SECRET_KEY",
-      { expiresIn: "60m" }
+      JWT_SECRET,
+      { expiresIn: "7d" }
     );
 
     res.cookie("token", token, { httpOnly: true, secure: false }).json({
@@ -74,7 +78,7 @@ const loginUser = async (req, res) => {
       user: {
         email: checkUser.email,
         role: checkUser.role,
-        id: checkUser._id,
+        id: userId,
         userName: checkUser.userName,
       },
     });
@@ -106,8 +110,12 @@ const authMiddleware = async (req, res, next) => {
     });
 
   try {
-    const decoded = jwt.verify(token, "CLIENT_SECRET_KEY");
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.id || decoded._id;
+    req.user = {
+      ...decoded,
+      id: userId ? userId.toString() : undefined,
+    };
     next();
   } catch (error) {
     res.status(401).json({
@@ -117,4 +125,131 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = { registerUser, loginUser, logoutUser, authMiddleware };
+const adminMiddleware = async (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ success: false, message: "Unauthorised user!" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, "CLIENT_SECRET_KEY");
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Admin access required" });
+    }
+    const userId = decoded.id || decoded._id;
+    req.user = {
+      ...decoded,
+      id: userId ? userId.toString() : undefined,
+    };
+    next();
+  } catch (error) {
+    res.status(401).json({ success: false, message: "Unauthorised user!" });
+  }
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { userName, email } = req.body;
+
+    if (!userName?.trim() || !email?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and email are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const emailTaken = await User.findOne({
+      email: email.trim().toLowerCase(),
+      _id: { $ne: userId },
+    });
+    if (emailTaken) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already in use",
+      });
+    }
+
+    user.userName = userName.trim();
+    user.email = email.trim().toLowerCase();
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        role: user.role,
+        email: user.email,
+        userName: user.userName,
+      },
+      "CLIENT_SECRET_KEY",
+      { expiresIn: "60m" }
+    );
+
+    res.cookie("token", token, { httpOnly: true, secure: false }).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role,
+        userName: user.userName,
+      },
+    });
+  } catch (e) {
+    console.error("updateProfile:", e);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password required. New password must be at least 6 characters",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (e) {
+    console.error("changePassword:", e);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  logoutUser,
+  authMiddleware,
+  adminMiddleware,
+  updateProfile,
+  changePassword,
+};

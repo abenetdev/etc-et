@@ -74,6 +74,38 @@ export const checkAuth = createAsyncThunk(
   }
 );
 
+export const updateProfile = createAsyncThunk(
+  "/auth/updateProfile",
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(
+        "http://localhost:5000/api/auth/profile",
+        formData,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (e) {
+      return rejectWithValue(e.response?.data.message || { message: e.message });
+    }
+  }
+);
+
+export const changePassword = createAsyncThunk(
+  "/auth/changePassword",
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await axios.put(
+        "http://localhost:5000/api/auth/change-password",
+        formData,
+        { withCredentials: true }
+      );
+      return response.data;
+    } catch (e) {
+      return rejectWithValue(e.response?.data || { message: e.message });
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -127,6 +159,11 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.user = null;
         state.isAuthenticated = false;
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        if (action.payload?.success && action.payload?.user) {
+          state.user = action.payload.user;
+        }
       });
   },
 });

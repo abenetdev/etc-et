@@ -1,4 +1,5 @@
 import { Input } from "../ui/input";
+import { PasswordInput } from "../ui/password-input";
 import { Label } from "../ui/label";
 import {
   Select,
@@ -23,9 +24,11 @@ function CommonForm({
     const value = formData[getControlItem.name] || "";
 
     switch (getControlItem.componentType) {
-      case "input":
+      case "input": {
+        const InputComponent =
+          getControlItem.type === "password" ? PasswordInput : Input;
         element = (
-          <Input
+          <InputComponent
             name={getControlItem.name}
             placeholder={getControlItem.placeholder}
             id={getControlItem.name}
@@ -39,8 +42,8 @@ function CommonForm({
             }
           />
         );
-
         break;
+      }
       case "select":
         element = (
           <Select
@@ -86,9 +89,11 @@ function CommonForm({
 
         break;
 
-      default:
+      default: {
+        const InputComponent =
+          getControlItem.type === "password" ? PasswordInput : Input;
         element = (
-          <Input
+          <InputComponent
             name={getControlItem.name}
             placeholder={getControlItem.placeholder}
             id={getControlItem.name}
@@ -103,6 +108,7 @@ function CommonForm({
           />
         );
         break;
+      }
     }
 
     return element;

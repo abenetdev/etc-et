@@ -115,7 +115,8 @@ function Address({ setCurrentSelectedAddress, selectedId }) {
     <Card>
       <div className="mb-5 p-3 grid grid-cols-1 sm:grid-cols-2  gap-2">
         {addressList && addressList.length > 0
-          ? addressList.map((singleAddressItem) => (
+          ? addressList.map((singleAddressItem, index) => (
+            <div key={index}>
               <AddressCard
                 selectedId={selectedId}
                 handleDeleteAddress={handleDeleteAddress}
@@ -123,6 +124,7 @@ function Address({ setCurrentSelectedAddress, selectedId }) {
                 handleEditAddress={handleEditAddress}
                 setCurrentSelectedAddress={setCurrentSelectedAddress}
               />
+              </div>
             ))
           : null}
       </div>

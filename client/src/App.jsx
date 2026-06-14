@@ -1,34 +1,64 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AuthLayout from "./components/auth/layout";
 import AuthLogin from "./pages/auth/login";
 import AuthRegister from "./pages/auth/register";
 import AdminLayout from "./components/admin-view/layout";
 import AdminDashboard from "./pages/admin-view/dashboard";
-import AdminProducts from "./pages/admin-view/products";
+import AdminVendors from "./pages/admin-view/vendors";
 import AdminOrders from "./pages/admin-view/orders";
-import AdminFeatures from "./pages/admin-view/features";
+import AdminWithdrawals from "./pages/admin-view/withdrawals";
+import VendorLayout from "./components/vendor-view/layout";
+import VendorDashboard from "./pages/vendor-view/dashboard";
+import VendorProducts from "./pages/vendor-view/products";
+import VendorOrders from "./pages/vendor-view/orders";
+import VendorOrderDetails from "./pages/vendor-view/order-details";
+import VendorFeatures from "./pages/vendor-view/features";
+import VendorStoreSettings from "./pages/vendor-view/store-settings";
+import VendorWallet from "./pages/vendor-view/wallet";
+import VendorPayoutSettings from "./pages/vendor-view/payout-settings";
+import VendorProfile from "./pages/vendor-view/profile";
 import ShoppingLayout from "./components/shopping-view/layout";
 import NotFound from "./pages/not-found";
 import ShoppingHome from "./pages/shopping-view/home";
 import ShoppingListing from "./pages/shopping-view/listing";
+import ProductDetailPage from "./pages/shopping-view/productDetail";
 import ShoppingCheckout from "./pages/shopping-view/checkout";
 import ShoppingAccount from "./pages/shopping-view/account";
+import AccountOverviewPage from "./pages/shopping-view/account-overview";
+import AccountOrdersPage from "./pages/shopping-view/account-orders";
+import AccountWishlistPage from "./pages/shopping-view/account-wishlist";
+import AccountCartPage from "./pages/shopping-view/account-cart";
+import AccountSettingsPage from "./pages/shopping-view/account-settings";
 import CheckAuth from "./components/common/check-auth";
 import UnauthPage from "./pages/unauth-page";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 import { checkAuth } from "./store/auth-slice";
 import { Skeleton } from "@/components/ui/skeleton";
-import PaypalReturnPage from "./pages/shopping-view/paypal-return";
 import PaymentSuccessPage from "./pages/shopping-view/payment-success";
 import SearchProducts from "./pages/shopping-view/search";
+import ChapaReturnPage from "./pages/shopping-view/chapa-return";
+import StoreFront from "./pages/shopping-view/store";
+import ShoppingHeader from "./components/shopping-view/header";
+import Footer from "./components/common/footer";
+import BecomeASeller from "./pages/become-seller/becomeSeller";
 
 function App() {
   const { user, isAuthenticated, isLoading } = useSelector(
     (state) => state.auth
   );
   const dispatch = useDispatch();
+const location = useLocation();
 
+  const hideHeaderRoutes = [
+    "/auth",
+    "/admin",
+    "/vendor",
+  ];
+
+  const shouldHideHeader = hideHeaderRoutes.some((path) =>
+    location.pathname.startsWith(path)
+  );
   useEffect(() => {
     dispatch(checkAuth());
   }, [dispatch]);
@@ -38,17 +68,14 @@ function App() {
   console.log(isLoading, user);
 
   return (
-    <div className="flex flex-col overflow-hidden bg-white">
+   <div className="flex flex-col overflow-hidden bg-white">
+
+      {/* HEADER — hidden on auth / admin / vendor pages */}
+      {!shouldHideHeader && <ShoppingHeader />}
+
       <Routes>
-        <Route
-          path="/"
-          element={
-            <CheckAuth
-              isAuthenticated={isAuthenticated}
-              user={user}
-            ></CheckAuth>
-          }
-        />
+        <Route path="/" element={<Navigate to="/shop/home" replace />} />
+
         <Route
           path="/auth"
           element={
@@ -60,6 +87,7 @@ function App() {
           <Route path="login" element={<AuthLogin />} />
           <Route path="register" element={<AuthRegister />} />
         </Route>
+
         <Route
           path="/admin"
           element={
@@ -69,29 +97,56 @@ function App() {
           }
         >
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="products" element={<AdminProducts />} />
+          <Route path="vendors" element={<AdminVendors />} />
           <Route path="orders" element={<AdminOrders />} />
-          <Route path="features" element={<AdminFeatures />} />
+          <Route path="withdrawals" element={<AdminWithdrawals />} />
         </Route>
+
         <Route
-          path="/shop"
+          path="/vendor"
           element={
             <CheckAuth isAuthenticated={isAuthenticated} user={user}>
-              <ShoppingLayout />
+              <VendorLayout />
             </CheckAuth>
           }
         >
+          <Route path="dashboard" element={<VendorDashboard />} />
+          <Route path="products" element={<VendorProducts />} />
+          <Route path="orders" element={<VendorOrders />} />
+          <Route path="orders/:orderId" element={<VendorOrderDetails />} />
+          <Route path="wallet" element={<VendorWallet />} />
+          <Route path="payout-settings" element={<VendorPayoutSettings />} />
+          <Route path="features" element={<VendorFeatures />} />
+          <Route path="store-settings" element={<VendorStoreSettings />} />
+          <Route path="profile" element={<VendorProfile />} />
+        </Route>
+
+        <Route path="/shop" element={<ShoppingLayout />}>
           <Route path="home" element={<ShoppingHome />} />
           <Route path="listing" element={<ShoppingListing />} />
+          <Route path="become-seller" element={<BecomeASeller />} />
+          <Route path="product/:productId" element={<ProductDetailPage />} />
           <Route path="checkout" element={<ShoppingCheckout />} />
-          <Route path="account" element={<ShoppingAccount />} />
-          <Route path="paypal-return" element={<PaypalReturnPage />} />
+          <Route path="account" element={<ShoppingAccount />}>
+            <Route index element={<AccountOverviewPage />} />
+            <Route path="orders" element={<AccountOrdersPage />} />
+            <Route path="wishlist" element={<AccountWishlistPage />} />
+            <Route path="cart" element={<AccountCartPage />} />
+            <Route path="settings" element={<AccountSettingsPage />} />
+          </Route>
           <Route path="payment-success" element={<PaymentSuccessPage />} />
+          <Route path="chapa-return" element={<ChapaReturnPage />} />
+          <Route path="paypal-cancel" element={<PaymentSuccessPage />} />
           <Route path="search" element={<SearchProducts />} />
         </Route>
+
         <Route path="/unauth-page" element={<UnauthPage />} />
+        <Route path="/store/:slug" element={<StoreFront />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+
+      {/* FOOTER — hidden on auth / admin / vendor pages */}
+      {!shouldHideHeader && <Footer />}
     </div>
   );
 }

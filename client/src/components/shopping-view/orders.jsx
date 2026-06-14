@@ -51,6 +51,7 @@ function ShoppingOrders() {
               <TableHead>Order ID</TableHead>
               <TableHead>Order Date</TableHead>
               <TableHead>Order Status</TableHead>
+              <TableHead>Action</TableHead>
               <TableHead>Order Price</TableHead>
               <TableHead>
                 <span className="sr-only">Details</span>
@@ -60,23 +61,36 @@ function ShoppingOrders() {
           <TableBody>
             {orderList && orderList.length > 0
               ? orderList.map((orderItem) => (
-                  <TableRow>
+                  <TableRow key={orderItem._id}>
                     <TableCell>{orderItem?._id}</TableCell>
                     <TableCell>{orderItem?.orderDate.split("T")[0]}</TableCell>
                     <TableCell>
                       <Badge
-                        className={`py-1 px-3 ${
-                          orderItem?.orderStatus === "confirmed"
-                            ? "bg-green-500"
-                            : orderItem?.orderStatus === "rejected"
-                            ? "bg-red-600"
-                            : "bg-black"
+                        className={`py-1 px-3 capitalize ${
+                          orderItem?.orderStatus === "delivered"
+                            ? "bg-green-100 text-green-800"
+                            : orderItem?.orderStatus === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {orderItem?.orderStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>${orderItem?.totalAmount}</TableCell>
+                    <TableCell>
+                      {orderItem?.paymentStatus === "paid" &&
+                      orderItem?.orderStatus === "delivered" &&
+                      !orderItem?.deliveryConfirmedByCustomer ? (
+                        <Badge className="bg-orange-100 text-orange-800">
+                          Confirm delivery
+                        </Badge>
+                      ) : orderItem?.deliveryConfirmedByCustomer ? (
+                        <Badge className="bg-green-100 text-green-800">Confirmed</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>ETB {orderItem?.totalAmount}</TableCell>
                     <TableCell>
                       <Dialog
                         open={openDetailsDialog}

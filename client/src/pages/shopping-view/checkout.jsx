@@ -4,125 +4,168 @@ import { useDispatch, useSelector } from "react-redux";
 import UserCartItemsContent from "@/components/shopping-view/cart-items-content";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { createNewOrder } from "@/store/shop/order-slice";
-import { Navigate } from "react-router-dom";
+import { createNewOrder, resetCheckout } from "@/store/shop/order-slice";
 import { useToast } from "@/components/ui/use-toast";
+import { Loader2, CreditCard, ShoppingBag } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { currencyFormatter } from "@/utils";
 
 function ShoppingCheckout() {
-  const { cartItems } = useSelector((state) => state.shopCart);
-  const { user } = useSelector((state) => state.auth);
-  const { approvalURL } = useSelector((state) => state.shopOrder);
+  const { cartItems }               = useSelector((s) => s.shopCart);
+  const { user }                    = useSelector((s) => s.auth);
+  const { checkoutUrl, isLoading }  = useSelector((s) => s.shopOrder);
   const [currentSelectedAddress, setCurrentSelectedAddress] = useState(null);
-  const [isPaymentStart, setIsPaymemntStart] = useState(false);
-  const dispatch = useDispatch();
+
+  const dispatch  = useDispatch();
   const { toast } = useToast();
 
-  console.log(currentSelectedAddress, "cartItems");
-
+  // Calculate total
   const totalCartAmount =
-    cartItems && cartItems.items && cartItems.items.length > 0
-      ? cartItems.items.reduce(
-          (sum, currentItem) =>
-            sum +
-            (currentItem?.salePrice > 0
-              ? currentItem?.salePrice
-              : currentItem?.price) *
-              currentItem?.quantity,
-          0
-        )
+    cartItems?.items?.length > 0
+      ? cartItems.items.reduce((sum, item) => {
+          const price = item.salePrice > 0 ? item.salePrice : item.price;
+          return sum + price * item.quantity;
+        }, 0)
       : 0;
 
-  function handleInitiatePaypalPayment() {
-    if (cartItems.length === 0) {
+  // Redirect when Chapa checkout URL is ready
+  if (checkoutUrl) {
+    window.location.href = checkoutUrl;
+    return null;
+  }
+
+  async function handleInitiatePayment() {
+    if (!cartItems?.items?.length) {
       toast({
-        title: "Your cart is empty. Please add items to proceed",
+        title: "Your cart is empty",
+        description: "Add items to your cart before checking out",
         variant: "destructive",
       });
-
       return;
     }
-    if (currentSelectedAddress === null) {
+
+    if (!currentSelectedAddress) {
       toast({
-        title: "Please select one address to proceed.",
+        title: "No address selected",
+        description: "Please select a delivery address to continue",
         variant: "destructive",
       });
-
       return;
     }
 
     const orderData = {
-      userId: user?.id,
-      cartId: cartItems?._id,
-      cartItems: cartItems.items.map((singleCartItem) => ({
-        productId: singleCartItem?.productId,
-        title: singleCartItem?.title,
-        image: singleCartItem?.image,
-        price:
-          singleCartItem?.salePrice > 0
-            ? singleCartItem?.salePrice
-            : singleCartItem?.price,
-        quantity: singleCartItem?.quantity,
+      userId:            user?.id,
+      cartId:            cartItems?._id,
+      cartItems:         cartItems.items.map((item) => ({
+        productId: item.productId,
+        title:     item.title,
+        image:     item.image,
+        price:     item.salePrice > 0 ? item.salePrice : item.price,
+        quantity:  item.quantity,
       })),
       addressInfo: {
         addressId: currentSelectedAddress?._id,
-        address: currentSelectedAddress?.address,
-        city: currentSelectedAddress?.city,
-        pincode: currentSelectedAddress?.pincode,
-        phone: currentSelectedAddress?.phone,
-        notes: currentSelectedAddress?.notes,
+        address:   currentSelectedAddress?.address,
+        city:      currentSelectedAddress?.city,
+        pincode:   currentSelectedAddress?.pincode,
+        phone:     currentSelectedAddress?.phone,
+        notes:     currentSelectedAddress?.notes,
       },
-      orderStatus: "pending",
-      paymentMethod: "paypal",
-      paymentStatus: "pending",
-      totalAmount: totalCartAmount,
-      orderDate: new Date(),
-      orderUpdateDate: new Date(),
-      paymentId: "",
-      payerId: "",
+      totalAmount:       totalCartAmount,
+      // Customer info for Chapa
+      customerEmail:     user?.email     || "customer@example.com",
+      customerFirstName: user?.userName  || "Customer",
+      customerLastName:  "",
     };
 
     dispatch(createNewOrder(orderData)).then((data) => {
-      console.log(data, "sangam");
-      if (data?.payload?.success) {
-        setIsPaymemntStart(true);
-      } else {
-        setIsPaymemntStart(false);
+      if (!data?.payload?.success) {
+        toast({
+          title: "Payment initialization failed",
+          description: data?.payload?.message || "Please try again",
+          variant: "destructive",
+        });
+        dispatch(resetCheckout());
       }
+      // On success, `checkoutUrl` in Redux state triggers the redirect above
     });
   }
 
-  if (approvalURL) {
-    window.location.href = approvalURL;
-  }
-
   return (
-    <div className="flex flex-col">
-      <div className="relative h-[300px] w-full overflow-hidden">
+    <div className="flex flex-col min-h-screen">
+      {/* Hero */}
+      {/* <div className="relative h-[200px] w-full overflow-hidden">
         <img src={img} className="h-full w-full object-cover object-center" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5 p-5">
-        <Address
-          selectedId={currentSelectedAddress}
-          setCurrentSelectedAddress={setCurrentSelectedAddress}
-        />
-        <div className="flex flex-col gap-4">
-          {cartItems && cartItems.items && cartItems.items.length > 0
-            ? cartItems.items.map((item) => (
-                <UserCartItemsContent cartItem={item} />
-              ))
-            : null}
-          <div className="mt-8 space-y-4">
-            <div className="flex justify-between">
-              <span className="font-bold">Total</span>
-              <span className="font-bold">${totalCartAmount}</span>
-            </div>
-          </div>
-          <div className="mt-4 w-full">
-            <Button onClick={handleInitiatePaypalPayment} className="w-full">
-              {isPaymentStart
-                ? "Processing Paypal Payment..."
-                : "Checkout with Paypal"}
-            </Button>
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <h1 className="text-white text-3xl font-bold">Checkout</h1>
+        </div>
+      </div> */}
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Left: Address */}
+          <Address
+            selectedId={currentSelectedAddress}
+            setCurrentSelectedAddress={setCurrentSelectedAddress}
+          />
+
+          {/* Right: Order Summary */}
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5" />
+                  Order Summary
+                </h2>
+
+                <div className="space-y-3">
+                  {cartItems?.items?.map((item) => (
+                    <UserCartItemsContent key={item.productId} cartItem={item} />
+                  ))}
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>ETB {totalCartAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Shipping</span>
+                    <span className="text-green-600">Free</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span>ETB {currencyFormatter(totalCartAmount)}</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleInitiatePayment}
+                  className="w-full mt-6 gap-2"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Redirecting to Chapa...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" />
+                      Pay with Chapa (ETB {currencyFormatter(totalCartAmount)})
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-center text-muted-foreground mt-3">
+                  You will be redirected to Chapa to complete payment securely.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
