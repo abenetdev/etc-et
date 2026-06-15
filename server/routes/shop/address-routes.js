@@ -1,4 +1,5 @@
 const express = require("express");
+const { apiRateLimiter } = require("../../middleware/rateLimiter");
 
 const {
   addAddress,
@@ -9,9 +10,9 @@ const {
 
 const router = express.Router();
 
-router.post("/add", addAddress);
-router.get("/get/:userId", fetchAllAddress);
-router.delete("/delete/:userId/:addressId", deleteAddress);
-router.put("/update/:userId/:addressId", editAddress);
+router.post("/add", apiRateLimiter, addAddress);
+router.get("/get/:userId", apiRateLimiter, fetchAllAddress);
+router.delete("/delete/:userId/:addressId", apiRateLimiter, deleteAddress);
+router.put("/update/:userId/:addressId", apiRateLimiter, editAddress);
 
 module.exports = router;

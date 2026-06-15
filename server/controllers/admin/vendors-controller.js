@@ -236,3 +236,122 @@ const updateStoreStatus = async (req, res) => {
 };
 
 module.exports = { getAllVendors, getVendorById, updateStoreStatus };
+
+// ── PUT /api/admin/vendors/:id/account-status  (deactivate / reactivate) ──
+const updateAccountStatus = async (req, res) => {
+  try {
+    const { id }     = req.params;
+    const { status } = req.body;
+
+    if (!["active", "deactivated"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Status must be 'active' or 'deactivated'" });
+    }
+
+    const vendor = await User.findOne({ _id: id, role: "vendor" });
+    if (!vendor) return res.status(404).json({ success: false, message: "Vendor not found" });
+
+    vendor.accountStatus = status;
+    await vendor.save();
+
+    if (status === "deactivated") {
+      // Hide all products from marketplace
+      await Product.updateMany({ storeId: id }, { status: "inactive" });
+      // Close the store
+      await Store.findOneAndUpdate({ ownerId: id }, { status: "temporarily-closed" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: status === "active"
+        ? "Vendor account reactivated."
+        : "Vendor deactivated. All products hidden from marketplace.",
+    });
+  } catch (e) {
+    console.error("updateAccountStatus:", e);
+    res.status(500).json({ success: false, message: "Server error", error: e.message });
+  }
+};
+
+// ── DELETE /api/admin/vendors/:id ─────────────────────────────────────────
+const deleteVendor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const vendor = await User.findOne({ _id: id, role: "vendor" });
+    if (!vendor) return res.status(404).json({ success: false, message: "Vendor not found" });
+
+    const objectId = toObjectId(id);
+
+    // Delete all products
+    await Product.deleteMany({ storeId: objectId });
+
+    // Orphan orders (keep for customer history)
+    await Order.updateMany(
+      { vendorId: objectId },
+      { $set: { vendorId: null, vendorDeleted: true } }
+    );
+
+    // Delete store
+    await Store.deleteOne({ ownerId: objectId });
+
+    // Delete wallet data (ignore if missing)
+    try {
+      const {
+        VendorWallet: WalletModel,
+        WalletTransaction,
+        WithdrawalRequest,
+      } = require("../../models/VendorWallet");
+      await WalletModel.deleteOne({ vendorId: objectId });
+      await WalletTransaction.deleteMany({ vendorId: objectId });
+      await WithdrawalRequest.deleteMany({ vendorId: objectId });
+    } catch (_) {}
+
+    // Soft-delete the user account
+    vendor.accountStatus = "deleted";
+    vendor.role          = "user";
+    await vendor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Vendor ${vendor.userName} has been permanently deleted.`,
+    });
+  } catch (e) {
+    console.error("deleteVendor:", e);
+    res.status(500).json({ success: false, message: "Server error", error: e.message });
+  }
+};
+
+// ── PUT /api/admin/vendors/:id/reset-password ─────────────────────────────
+const resetVendorPassword = async (req, res) => {
+  try {
+    const { id }          = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const vendor = await User.findOne({ _id: id, role: "vendor" });
+    if (!vendor) return res.status(404).json({ success: false, message: "Vendor not found" });
+
+    const bcrypt = require("bcryptjs");
+    vendor.password           = await bcrypt.hash(newPassword, 12);
+    vendor.mustChangePassword = true;
+    await vendor.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Password for ${vendor.userName} has been reset. They will need to update it on next login.`,
+    });
+  } catch (e) {
+    console.error("resetVendorPassword:", e);
+    res.status(500).json({ success: false, message: "Server error", error: e.message });
+  }
+};
+
+// Re-export with new actions
+Object.assign(module.exports, {
+  updateAccountStatus,
+  deleteVendor,
+  resetVendorPassword,
+});

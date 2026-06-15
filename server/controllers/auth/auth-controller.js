@@ -59,6 +59,14 @@ const loginUser = async (req, res) => {
         message: "Incorrect Email or Password! Please try again",
       });
 
+    // Block deactivated or deleted accounts
+    if (checkUser.accountStatus === "deleted") {
+      return res.json({ success: false, message: "This account has been removed." });
+    }
+    if (checkUser.accountStatus === "deactivated") {
+      return res.json({ success: false, message: "Your account has been deactivated. Please contact support." });
+    }
+
     const userId = checkUser._id.toString();
 
     const token = jwt.sign(

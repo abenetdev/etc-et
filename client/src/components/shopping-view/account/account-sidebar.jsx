@@ -1,13 +1,8 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  LayoutDashboard,
-  Package,
-  Heart,
-  ShoppingCart,
-  Settings,
-  LogOut,
-  ChevronRight,
+  LayoutDashboard, Package, Heart, ShoppingCart,
+  Settings, LogOut, ChevronRight, Store, Clock,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,7 +20,8 @@ const navItems = [
 function AccountSidebar({ onNavigate }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user }  = useSelector((state) => state.auth);
+  const { sellerStatus } = useSelector((state) => state.shopSeller);
   const { count: wishlistCount } = useSelector((state) => state.shopWishlist);
   const { cartItems } = useSelector((state) => state.shopCart);
 
@@ -100,6 +96,24 @@ function AccountSidebar({ onNavigate }) {
         <LogOut className="h-4 w-4" />
         Logout
       </Button>
+
+      {/* ── Become a Seller CTA ─────────────────────── */}
+      {user?.role === "user" && !sellerStatus && (
+        <Button
+          className="mt-3 w-full gap-2 bg-slate-900 hover:bg-slate-800 text-white"
+          onClick={() => { navigate("/shop/become-seller"); onNavigate?.(); }}
+        >
+          <Store className="h-4 w-4" />
+          Become a Seller
+        </Button>
+      )}
+
+      {user?.role === "user" && sellerStatus === "pending" && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+          Application under review
+        </div>
+      )}
     </aside>
   );
 }

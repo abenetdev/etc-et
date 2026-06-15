@@ -1,10 +1,15 @@
 const express = require("express");
 const { authMiddleware } = require("../../controllers/auth/auth-controller");
-const { apiRateLimiter } = require("../../middleware/rateLimiter");
-const { getDashboard } = require("../../controllers/vendor/dashboard-controller");
+const {
+  applyToBecomeSeller,
+  getSellerStatus,
+} = require("../../controllers/shop/seller-controller");
+
 const router = express.Router();
 
 router.use(authMiddleware);
-router.get("/", apiRateLimiter, getDashboard);
+
+router.post("/apply",  applyToBecomeSeller);
+router.get("/status",  getSellerStatus);
 
 module.exports = router;

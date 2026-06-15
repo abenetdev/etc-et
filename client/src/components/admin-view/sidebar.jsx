@@ -4,6 +4,7 @@ import {
   Store,
   ClipboardList,
   Wallet,
+  UserCheck,
 } from "lucide-react";
 import { Fragment } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +22,12 @@ const adminSidebarMenuItems = [
     label: "Vendors",
     path: "/admin/vendors",
     icon: <Store />,
+  },
+  {
+    id: "seller-applications",
+    label: "Seller Applications",
+    path: "/admin/seller-applications",
+    icon: <UserCheck />,
   },
   {
     id: "orders",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { registerUser } from "@/store/auth-slice";
@@ -6,12 +6,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, UserPlus } from "lucide-react";
+import { Loader2, Eye, EyeOff, UserPlus, Clock } from "lucide-react";
 
 function AuthRegister() {
   const [form, setForm]               = useState({ userName: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]         = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   const dispatch  = useDispatch();
   const navigate  = useNavigate();
@@ -19,8 +21,27 @@ function AuthRegister() {
 
   const set = (field, val) => setForm((p) => ({ ...p, [field]: val }));
 
+  // Countdown timer for rate limit
+  useEffect(() => {
+    let interval;
+    if (rateLimited && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setRateLimited(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [rateLimited, timeRemaining]);
+
   async function onSubmit(e) {
     e.preventDefault();
+    if (rateLimited) return;
+
     setLoading(true);
     const data = await dispatch(registerUser(form));
     setLoading(false);
@@ -29,13 +50,31 @@ function AuthRegister() {
       toast({ title: "Account created!", description: "Please sign in." });
       navigate("/auth/login");
     } else {
-      toast({
-        title:       "Registration failed",
-        description: data?.payload?.message || "Please try again",
-        variant:     "destructive",
-      });
+      // Check if it's a rate limit error (429 status)
+      if (data?.error?.message?.includes("429") || data?.payload?.retryAfter) {
+        const retryAfter = data?.payload?.retryAfter || 900; // Default 15 minutes
+        setRateLimited(true);
+        setTimeRemaining(retryAfter);
+        toast({
+          title:       "Too many attempts",
+          description: `Please wait ${Math.ceil(retryAfter / 60)} minutes before trying again`,
+          variant:     "destructive",
+        });
+      } else {
+        toast({
+          title:       "Registration failed",
+          description: data?.payload?.message || "Please try again",
+          variant:     "destructive",
+        });
+      }
     }
   }
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const isValid = form.userName.trim() && form.email.trim() && form.password.length >= 6;
 
@@ -108,20 +147,29 @@ function AuthRegister() {
           {form.password && form.password.length < 6 && (
             <p className="text-xs text-orange-500">Password must be at least 6 characters</p>
           )}
+          {/* Rate limit countdown below password */}
+          {rateLimited && (
+            <div className="flex items-center gap-2 mt-2 text-amber-600 text-sm">
+              <Clock className="h-4 w-4" />
+              <span>Wait {formatTime(timeRemaining)} before trying again</span>
+            </div>
+          )}
         </div>
 
         {/* Submit */}
         <Button
           type="submit"
-          disabled={loading || !isValid}
+          disabled={loading || rateLimited || (!rateLimited && !isValid)}
           className="w-full h-11 gap-2 text-sm font-medium mt-2"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : rateLimited ? (
+            <Clock className="h-4 w-4" />
           ) : (
             <UserPlus className="h-4 w-4" />
           )}
-          {loading ? "Creating account…" : "Create Account"}
+          {loading ? "Creating account…" : rateLimited ? `Wait ${formatTime(timeRemaining)}` : "Create Account"}
         </Button>
       </form>
 

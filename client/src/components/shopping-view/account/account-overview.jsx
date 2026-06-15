@@ -1,20 +1,17 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Package,
-  Heart,
-  ShoppingCart,
-  ArrowRight,
-  TrendingUp,
-  Clock,
+  Package, Heart, ShoppingCart, ArrowRight,
+  TrendingUp, Clock, Store, ChevronRight,
 } from "lucide-react";
 import { getAllOrdersByUserId } from "@/store/shop/order-slice";
 import { fetchCartItems } from "@/store/shop/cart-slice";
 import { fetchWishlist } from "@/store/shop/wishlist-slice";
+import { getSellerStatus } from "@/store/shop/seller-slice";
 
 const fmt = (n) =>
   `ETB ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -32,11 +29,13 @@ const statusColor = (status) => {
 };
 
 function AccountOverview() {
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  const { orderList } = useSelector((state) => state.shopOrder);
-  const { cartItems } = useSelector((state) => state.shopCart);
+  const dispatch  = useDispatch();
+  const navigate  = useNavigate();
+  const { user }  = useSelector((state) => state.auth);
+  const { orderList }            = useSelector((state) => state.shopOrder);
+  const { cartItems }            = useSelector((state) => state.shopCart);
   const { count: wishlistCount } = useSelector((state) => state.shopWishlist);
+  const { sellerStatus }         = useSelector((state) => state.shopSeller);
 
   const userId = user?.id || user?._id;
 
@@ -45,6 +44,7 @@ function AccountOverview() {
       dispatch(getAllOrdersByUserId(userId));
       dispatch(fetchCartItems(userId));
       dispatch(fetchWishlist(userId));
+      dispatch(getSellerStatus());
     }
   }, [dispatch, userId]);
 
@@ -180,6 +180,52 @@ function AccountOverview() {
           )}
         </CardContent>
       </Card>
+      {/* ── Become a Seller Banner ────────────────────────── */}
+      {user?.role === "user" && !sellerStatus && (
+        <div className="rounded-2xl bg-gradient-to-r from-slate-900 to-slate-700 p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-white/10 rounded-xl flex-shrink-0">
+              <Store className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-bold text-lg">Start Selling on MarketPlace</p>
+              <p className="text-slate-300 text-sm mt-0.5">
+                Turn your passion into profit. Open your own store and reach thousands of customers.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate("/shop/become-seller")}
+            className="shrink-0 bg-white text-slate-900 hover:bg-slate-100 gap-2"
+          >
+            Become a Seller
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {user?.role === "user" && sellerStatus === "pending" && (
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 flex items-center gap-3 text-sm text-yellow-800">
+          <Clock className="h-5 w-5 flex-shrink-0 text-yellow-600" />
+          <span>
+            Your seller application is <strong>under review</strong>. We'll notify you once it's processed.
+          </span>
+        </div>
+      )}
+
+      {user?.role === "user" && sellerStatus === "rejected" && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-center justify-between gap-3 text-sm text-red-800">
+          <span>Your previous seller application was not approved.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate("/shop/become-seller")}
+            className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+          >
+            Reapply
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

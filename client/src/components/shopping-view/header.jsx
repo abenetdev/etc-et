@@ -1,6 +1,7 @@
 import {
   HousePlug, LogOut, Menu, ShoppingCart,
   UserCog, User, LogIn, UserPlus, Package,
+  Store,
 } from "lucide-react";
 import {
   Link,
@@ -163,7 +164,14 @@ function HeaderRightContent() {
             <UserPlus className="h-4 w-4" />
             Register
           </Button>
-          <a href="/shop/become-seller" className="">Become seller</a>
+          <Button
+            size="sm"
+            onClick={() => navigate("/shop/become-seller")}
+            className="gap-1.5 bg-green-600"
+          >
+            <Store className="h-4 w-4" />
+            Become Seller
+          </Button>
         </div>
       )}
     </div>

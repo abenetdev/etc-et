@@ -1,4 +1,5 @@
 const express = require("express");
+const { apiRateLimiter } = require("../../middleware/rateLimiter");
 
 const {
   getFilteredProducts,
@@ -7,7 +8,7 @@ const {
 
 const router = express.Router();
 
-router.get("/get", getFilteredProducts);
-router.get("/get/:id", getProductDetails);
+router.get("/get", apiRateLimiter, getFilteredProducts);
+router.get("/get/:id", apiRateLimiter, getProductDetails);
 
 module.exports = router;

@@ -83,6 +83,9 @@ app.use("/api/shop/review", shopReviewRouter);
 app.use("/api/shop/wishlist", require("./routes/shop/wishlist-routes"));
 app.use("/api/shop/home", require("./routes/shop/home-routes"));
 app.use("/api/shop/store", require("./routes/shop/store-routes"));
+app.use("/api/shop/seller", require("./routes/shop/seller-routes"));
+
+app.use("/api/admin/seller-applications", require("./routes/admin/seller-application-routes"));
 
 app.use("/api/common/feature", commonFeatureRouter);
 

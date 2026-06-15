@@ -52,7 +52,9 @@ function CheckAuth({ isAuthenticated, user, children }) {
     user?.role === "vendor" &&
     location.pathname.includes("shop")
   ) {
-    return <Navigate to="/vendor/dashboard" />;
+    // Vendors can browse shop BUT are redirected away from auth pages only
+    // (they keep full customer access while also being sellers)
+    return <>{children}</>;
   }
 
   if (

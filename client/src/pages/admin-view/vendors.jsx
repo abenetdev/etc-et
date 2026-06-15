@@ -1,182 +1,173 @@
 import { Fragment, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  Search,
-  Store,
-  MoreVertical,
-  Eye,
-  ExternalLink,
-  Ban,
-  CheckCircle,
-  Package,
-  ShoppingBag,
-  Wallet,
+  Search, Store, MoreVertical, Eye, ExternalLink, Ban, CheckCircle,
+  Package, ShoppingBag, Wallet, Trash2, KeyRound, UserX, UserCheck,
+  AlertTriangle, Loader2,
 } from "lucide-react";
 import {
-  fetchAllVendors,
-  getVendorById,
-  updateVendorStoreStatus,
+  fetchAllVendors, getVendorById, updateVendorStoreStatus,
+  updateVendorAccountStatus, deleteVendor, resetVendorPassword,
   clearVendorDetails,
 } from "@/store/admin/vendors-slice";
 
+// ── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) =>
-  `ETB ${(n || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  `ETB ${(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
 function StoreStatusBadge({ store }) {
-  if (!store) {
-    return <Badge variant="secondary">No Store</Badge>;
-  }
-  if (store.status === "active") {
-    return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-  }
-  return <Badge className="bg-orange-100 text-orange-800">Closed</Badge>;
+  if (!store) return <Badge variant="secondary">No Store</Badge>;
+  if (store.status === "active") return <Badge className="bg-green-100 text-green-800 border-0">Active</Badge>;
+  return <Badge className="bg-orange-100 text-orange-800 border-0">Closed</Badge>;
 }
 
-export default function AdminVendors() {
-  const dispatch = useDispatch();
-  const { toast } = useToast();
+function AccountStatusBadge({ status }) {
+  if (status === "deactivated") return <Badge className="bg-orange-100 text-orange-800 border-0">Deactivated</Badge>;
+  if (status === "deleted")     return <Badge className="bg-red-100 text-red-800 border-0">Deleted</Badge>;
+  return <Badge className="bg-green-100 text-green-800 border-0">Active</Badge>;
+}
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [detailsOpen, setDetailsOpen] = useState(false);
+// ── Main Component ─────────────────────────────────────────────────────────
+export default function AdminVendors() {
+  const dispatch   = useDispatch();
+  const { toast }  = useToast();
 
   const { vendorList, vendorDetails, isListLoading, isSubmitting } =
     useSelector((s) => s.adminVendors);
+
+  // Filter state
+  const [searchTerm,   setSearchTerm]   = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  // Dialog state
+  const [detailsOpen,       setDetailsOpen]       = useState(false);
+  const [deleteTarget,      setDeleteTarget]      = useState(null);
+  const [deactivateTarget,  setDeactivateTarget]  = useState(null);
+  const [resetPwdTarget,    setResetPwdTarget]    = useState(null);
+  const [newPassword,       setNewPassword]       = useState("");
 
   useEffect(() => {
     dispatch(fetchAllVendors({ search: searchTerm, storeStatus: filterStatus }));
   }, [dispatch, filterStatus]);
 
-  const handleSearch = () => {
-    dispatch(fetchAllVendors({ search: searchTerm, storeStatus: filterStatus }));
-  };
+  // ── Handlers ───────────────────────────────────────────────────────────
+  const refresh = () => dispatch(fetchAllVendors({ search: searchTerm, storeStatus: filterStatus }));
+
+  const handleSearch = () => refresh();
 
   const handleViewDetails = (vendorId) => {
     dispatch(getVendorById(vendorId));
     setDetailsOpen(true);
   };
 
-  const handleCloseDetails = () => {
-    setDetailsOpen(false);
-    dispatch(clearVendorDetails());
-  };
-
   const handleToggleStoreStatus = async (vendorId, currentStatus) => {
-    const newStatus =
-      currentStatus === "active" ? "temporarily-closed" : "active";
-
-    const result = await dispatch(
-      updateVendorStoreStatus({ vendorId, status: newStatus })
-    );
-
+    const newStatus = currentStatus === "active" ? "temporarily-closed" : "active";
+    const result = await dispatch(updateVendorStoreStatus({ vendorId, status: newStatus }));
     if (result?.payload?.success) {
       toast({ title: result.payload.message });
-      dispatch(fetchAllVendors({ search: searchTerm, storeStatus: filterStatus }));
-      if (detailsOpen && vendorDetails?._id === vendorId) {
-        dispatch(getVendorById(vendorId));
-      }
+      refresh();
+      if (detailsOpen && vendorDetails?._id === vendorId) dispatch(getVendorById(vendorId));
     } else {
-      toast({
-        title: "Update failed",
-        description: result?.payload?.message || "Could not update store status",
-        variant: "destructive",
-      });
+      toast({ title: result?.payload?.message || "Update failed", variant: "destructive" });
+    }
+  };
+
+  const handleAccountStatus = async () => {
+    if (!deactivateTarget) return;
+    const newStatus = deactivateTarget.accountStatus === "deactivated" ? "active" : "deactivated";
+    const result = await dispatch(updateVendorAccountStatus({ vendorId: deactivateTarget._id, status: newStatus }));
+    if (result?.payload?.success) {
+      toast({ title: result.payload.message });
+      setDeactivateTarget(null);
+      refresh();
+    } else {
+      toast({ title: result?.payload?.message || "Failed", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const result = await dispatch(deleteVendor(deleteTarget._id));
+    if (result?.payload?.success) {
+      toast({ title: result.payload.message });
+      setDeleteTarget(null);
+      setDetailsOpen(false);
+      dispatch(clearVendorDetails());
+    } else {
+      toast({ title: result?.payload?.message || "Delete failed", variant: "destructive" });
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPwdTarget || !newPassword) return;
+    const result = await dispatch(resetVendorPassword({ vendorId: resetPwdTarget._id, newPassword }));
+    if (result?.payload?.success) {
+      toast({ title: result.payload.message });
+      setResetPwdTarget(null);
+      setNewPassword("");
+    } else {
+      toast({ title: result?.payload?.message || "Reset failed", variant: "destructive" });
     }
   };
 
   const stats = {
-    total: vendorList.length,
-    active: vendorList.filter((v) => v.store?.status === "active").length,
-    closed: vendorList.filter((v) => v.store?.status === "temporarily-closed").length,
-    noStore: vendorList.filter((v) => !v.store).length,
+    total:    vendorList.length,
+    active:   vendorList.filter((v) => v.store?.status === "active").length,
+    closed:   vendorList.filter((v) => v.store?.status === "temporarily-closed").length,
+    noStore:  vendorList.filter((v) => !v.store).length,
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <Fragment>
+      {/* Page header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Vendors</h1>
-        <p className="text-muted-foreground">
-          Manage marketplace sellers and their stores
-        </p>
+        <p className="text-muted-foreground">Manage marketplace sellers and their stores</p>
       </div>
 
+      {/* Stat cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Active Stores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Temporarily Closed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.closed}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">No Store Yet</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">{stats.noStore}</div>
-          </CardContent>
-        </Card>
+        {[
+          { label: "Total Vendors",      value: stats.total,   color: "" },
+          { label: "Active Stores",       value: stats.active,  color: "text-green-600" },
+          { label: "Temporarily Closed",  value: stats.closed,  color: "text-orange-600" },
+          { label: "No Store Yet",        value: stats.noStore, color: "text-muted-foreground" },
+        ].map(({ label, value, color }) => (
+          <Card key={label}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">{label}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${color}`}>{value}</div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
+      {/* Filters */}
       <div className="flex gap-4 items-center mb-6">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -188,9 +179,7 @@ export default function AdminVendors() {
             className="pl-10"
           />
         </div>
-        <Button variant="outline" onClick={handleSearch}>
-          Search
-        </Button>
+        <Button variant="outline" onClick={handleSearch}>Search</Button>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Store status" />
@@ -204,99 +193,90 @@ export default function AdminVendors() {
         </Select>
       </div>
 
+      {/* Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Vendor</TableHead>
               <TableHead>Store</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Store Status</TableHead>
+              <TableHead>Account</TableHead>
               <TableHead>Products</TableHead>
               <TableHead>Orders</TableHead>
               <TableHead>Revenue</TableHead>
               <TableHead>Joined</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+              <TableHead className="w-[60px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isListLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  Loading vendors...
+                <TableCell colSpan={9} className="text-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : vendorList.length > 0 ? (
               vendorList.map((vendor) => (
-                <TableRow key={vendor._id}>
+                <TableRow key={vendor._id} className={vendor.accountStatus === "deactivated" ? "opacity-60" : ""}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{vendor.userName}</div>
-                      <div className="text-sm text-muted-foreground">{vendor.email}</div>
+                      <p className="font-medium">{vendor.userName}</p>
+                      <p className="text-xs text-muted-foreground">{vendor.email}</p>
                     </div>
                   </TableCell>
                   <TableCell>
                     {vendor.store ? (
                       <div>
-                        <div className="font-medium">{vendor.store.storeName}</div>
-                        <div className="text-xs text-muted-foreground">/{vendor.store.slug}</div>
+                        <p className="font-medium text-sm">{vendor.store.storeName}</p>
+                        <p className="text-xs text-muted-foreground">/{vendor.store.slug}</p>
                       </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <StoreStatusBadge store={vendor.store} />
-                  </TableCell>
+                  <TableCell><StoreStatusBadge store={vendor.store} /></TableCell>
+                  <TableCell><AccountStatusBadge status={vendor.accountStatus} /></TableCell>
                   <TableCell>{vendor.stats?.totalProducts ?? 0}</TableCell>
                   <TableCell>{vendor.stats?.totalOrders ?? 0}</TableCell>
                   <TableCell>{fmt(vendor.stats?.totalRevenue)}</TableCell>
-                  <TableCell className="text-sm">{formatDate(vendor.joinedAt)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatDate(vendor.joinedAt)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handleViewDetails(vendor._id)}
-                          className="gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View Details
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem onClick={() => handleViewDetails(vendor._id)} className="gap-2">
+                          <Eye className="h-4 w-4" />View Details
                         </DropdownMenuItem>
                         {vendor.store?.slug && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              window.open(`/store/${vendor.store.slug}`, "_blank")
-                            }
-                            className="gap-2"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            View Storefront
+                          <DropdownMenuItem onClick={() => window.open(`/store/${vendor.store.slug}`, "_blank")} className="gap-2">
+                            <ExternalLink className="h-4 w-4" />View Storefront
                           </DropdownMenuItem>
                         )}
                         {vendor.store && (
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleToggleStoreStatus(vendor._id, vendor.store.status)
+                          <DropdownMenuItem onClick={() => handleToggleStoreStatus(vendor._id, vendor.store.status)} className="gap-2">
+                            {vendor.store.status === "active"
+                              ? <><Ban className="h-4 w-4" />Close Store</>
+                              : <><CheckCircle className="h-4 w-4" />Activate Store</>
                             }
-                            className="gap-2"
-                          >
-                            {vendor.store.status === "active" ? (
-                              <>
-                                <Ban className="h-4 w-4" />
-                                Close Store
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4" />
-                                Activate Store
-                              </>
-                            )}
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setDeactivateTarget(vendor)} className="gap-2">
+                          {vendor.accountStatus === "deactivated"
+                            ? <><UserCheck className="h-4 w-4 text-green-600" />Reactivate Account</>
+                            : <><UserX className="h-4 w-4 text-orange-500" />Deactivate Account</>
+                          }
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => { setResetPwdTarget(vendor); setNewPassword(""); }} className="gap-2">
+                          <KeyRound className="h-4 w-4" />Reset Password
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setDeleteTarget(vendor)} className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50">
+                          <Trash2 className="h-4 w-4" />Delete Vendor
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -304,11 +284,9 @@ export default function AdminVendors() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  <div className="flex flex-col items-center gap-2">
-                    <Store className="h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">No vendors found</p>
-                  </div>
+                <TableCell colSpan={9} className="text-center py-12">
+                  <Store className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No vendors found</p>
                 </TableCell>
               </TableRow>
             )}
@@ -316,23 +294,23 @@ export default function AdminVendors() {
         </Table>
       </div>
 
-      <Dialog open={detailsOpen} onOpenChange={handleCloseDetails}>
+      {/* ── VENDOR DETAILS DIALOG ───────────────────────────────────────────── */}
+      <Dialog open={detailsOpen} onOpenChange={(v) => { if (!v) { setDetailsOpen(false); dispatch(clearVendorDetails()); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Vendor Details</DialogTitle>
           </DialogHeader>
-
-          {isSubmitting && !vendorDetails ? (
-            <p className="text-center py-8 text-muted-foreground">Loading...</p>
-          ) : vendorDetails ? (
+          {!vendorDetails ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : (
             <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Vendor</p>
-                <p className="font-semibold">{vendorDetails.userName}</p>
-                <p className="text-sm">{vendorDetails.email}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Joined {formatDate(vendorDetails.joinedAt)}
-                </p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-semibold">{vendorDetails.userName}</p>
+                  <p className="text-sm text-muted-foreground">{vendorDetails.email}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Joined {formatDate(vendorDetails.joinedAt)}</p>
+                </div>
+                <AccountStatusBadge status={vendorDetails.accountStatus} />
               </div>
 
               {vendorDetails.store ? (
@@ -341,98 +319,55 @@ export default function AdminVendors() {
                     <p className="font-semibold">{vendorDetails.store.storeName}</p>
                     <StoreStatusBadge store={vendorDetails.store} />
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    /{vendorDetails.store.slug}
-                  </p>
+                  <p className="text-sm text-muted-foreground">/{vendorDetails.store.slug}</p>
                   {vendorDetails.store.businessCategory && (
-                    <p className="text-sm capitalize">
-                      Category: {vendorDetails.store.businessCategory.replace("-", " ")}
-                    </p>
-                  )}
-                  {(vendorDetails.store.city || vendorDetails.store.phone) && (
-                    <p className="text-sm text-muted-foreground">
-                      {[vendorDetails.store.city, vendorDetails.store.phone]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
+                    <p className="text-sm capitalize">Category: {vendorDetails.store.businessCategory.replace("-", " ")}</p>
                   )}
                   <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        window.open(`/store/${vendorDetails.store.slug}`, "_blank")
-                      }
-                      className="gap-1"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Storefront
+                    <Button size="sm" variant="outline" onClick={() => window.open(`/store/${vendorDetails.store.slug}`, "_blank")} className="gap-1">
+                      <ExternalLink className="h-3 w-3" />Storefront
                     </Button>
                     <Button
                       size="sm"
                       variant={vendorDetails.store.status === "active" ? "destructive" : "default"}
-                      onClick={() =>
-                        handleToggleStoreStatus(
-                          vendorDetails._id,
-                          vendorDetails.store.status
-                        )
-                      }
+                      onClick={() => handleToggleStoreStatus(vendorDetails._id, vendorDetails.store.status)}
                       disabled={isSubmitting}
                     >
-                      {vendorDetails.store.status === "active"
-                        ? "Close Store"
-                        : "Activate Store"}
+                      {vendorDetails.store.status === "active" ? "Close Store" : "Activate Store"}
                     </Button>
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground rounded-lg border p-4">
-                  This vendor has not set up a store yet.
-                </p>
+                <p className="text-sm text-muted-foreground rounded-lg border p-4">This vendor has not set up a store yet.</p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border p-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Package className="h-4 w-4" />
-                    Products
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Package className="h-4 w-4" />Products
                   </div>
-                  <p className="text-xl font-bold mt-1">
-                    {vendorDetails.stats?.totalProducts ?? 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {vendorDetails.stats?.activeProducts ?? 0} active
-                  </p>
+                  <p className="text-xl font-bold">{vendorDetails.stats?.totalProducts ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">{vendorDetails.stats?.activeProducts ?? 0} active</p>
                 </div>
                 <div className="rounded-lg border p-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ShoppingBag className="h-4 w-4" />
-                    Orders
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <ShoppingBag className="h-4 w-4" />Orders
                   </div>
-                  <p className="text-xl font-bold mt-1">
-                    {vendorDetails.stats?.totalOrders ?? 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {fmt(vendorDetails.stats?.totalRevenue)} revenue
-                  </p>
+                  <p className="text-xl font-bold">{vendorDetails.stats?.totalOrders ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">{fmt(vendorDetails.stats?.totalRevenue)} revenue</p>
                 </div>
                 <div className="rounded-lg border p-3 col-span-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Wallet className="h-4 w-4" />
-                    Wallet
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Wallet className="h-4 w-4" />Wallet
                   </div>
-                  <div className="flex gap-6 mt-1">
+                  <div className="flex gap-6">
                     <div>
                       <p className="text-xs text-muted-foreground">Available</p>
-                      <p className="font-semibold text-green-600">
-                        {fmt(vendorDetails.stats?.availableBalance)}
-                      </p>
+                      <p className="font-semibold text-green-600">{fmt(vendorDetails.stats?.availableBalance)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Pending</p>
-                      <p className="font-semibold text-orange-600">
-                        {fmt(vendorDetails.stats?.pendingBalance)}
-                      </p>
+                      <p className="font-semibold text-orange-600">{fmt(vendorDetails.stats?.pendingBalance)}</p>
                     </div>
                   </div>
                 </div>
@@ -443,10 +378,7 @@ export default function AdminVendors() {
                   <p className="text-sm font-medium mb-2">Recent Orders</p>
                   <div className="space-y-2">
                     {vendorDetails.recentOrders.map((order) => (
-                      <div
-                        key={order._id}
-                        className="flex items-center justify-between text-sm rounded border px-3 py-2"
-                      >
+                      <div key={order._id} className="flex items-center justify-between text-sm rounded border px-3 py-2">
                         <span className="font-mono text-xs">{order.orderId}</span>
                         <span>{fmt(order.totalAmount)}</span>
                         <Badge variant="secondary">{order.orderStatus}</Badge>
@@ -456,7 +388,120 @@ export default function AdminVendors() {
                 </div>
               )}
             </div>
-          ) : null}
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DELETE CONFIRMATION ──────────────────────────────────────────────── */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" />Delete Vendor
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p>Permanently delete <strong>{deleteTarget?.userName}</strong>? This will:</p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>Delete all their products</li>
+              <li>Remove their storefront</li>
+              <li>Orphan their orders (customer records kept)</li>
+              <li>Delete their wallet &amp; transactions</li>
+            </ul>
+            <p className="text-red-600 font-semibold">This action cannot be undone.</p>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" className="flex-1 gap-2" disabled={isSubmitting} onClick={handleDelete}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete Permanently
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── DEACTIVATE / REACTIVATE DIALOG ──────────────────────────────────── */}
+      <Dialog open={!!deactivateTarget} onOpenChange={() => setDeactivateTarget(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {deactivateTarget?.accountStatus === "deactivated"
+                ? <><UserCheck className="h-5 w-5 text-green-600" />Reactivate Account</>
+                : <><UserX className="h-5 w-5 text-orange-600" />Deactivate Account</>
+              }
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-muted-foreground space-y-2">
+            {deactivateTarget?.accountStatus === "deactivated" ? (
+              <p>Reactivate <strong className="text-foreground">{deactivateTarget?.userName}</strong>? Their account will be restored and they can log in again.</p>
+            ) : (
+              <>
+                <p>Deactivate <strong className="text-foreground">{deactivateTarget?.userName}</strong>?</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>They cannot log in as a seller</li>
+                  <li>All products hidden from marketplace</li>
+                  <li>Store marked as temporarily closed</li>
+                </ul>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => setDeactivateTarget(null)}>Cancel</Button>
+            <Button
+              className={`flex-1 gap-2 text-white ${deactivateTarget?.accountStatus === "deactivated" ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"}`}
+              disabled={isSubmitting}
+              onClick={handleAccountStatus}
+            >
+              {isSubmitting
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : deactivateTarget?.accountStatus === "deactivated"
+                  ? <UserCheck className="h-4 w-4" />
+                  : <UserX className="h-4 w-4" />
+              }
+              {deactivateTarget?.accountStatus === "deactivated" ? "Reactivate" : "Deactivate"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── RESET PASSWORD DIALOG ────────────────────────────────────────────── */}
+      <Dialog open={!!resetPwdTarget} onOpenChange={() => { setResetPwdTarget(null); setNewPassword(""); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" />Reset Password
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Set a new password for <strong className="text-foreground">{resetPwdTarget?.userName}</strong>.
+              They will be required to change it on next login.
+            </p>
+            <div>
+              <Label className="text-sm">New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                className="mt-1"
+              />
+              {newPassword && newPassword.length < 6 && (
+                <p className="text-xs text-red-500 mt-1">Minimum 6 characters required</p>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1" onClick={() => { setResetPwdTarget(null); setNewPassword(""); }}>Cancel</Button>
+            <Button
+              className="flex-1 gap-2"
+              disabled={isSubmitting || !newPassword || newPassword.length < 6}
+              onClick={handleResetPassword}
+            >
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              Reset Password
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Fragment>

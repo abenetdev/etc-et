@@ -1,5 +1,6 @@
 const express = require("express");
 const { authMiddleware } = require("../../controllers/auth/auth-controller");
+const { apiRateLimiter } = require("../../middleware/rateLimiter");
 const {
   getAllOrdersOfAllUsers,
   getOrderDetailsForVendor,
@@ -12,9 +13,9 @@ const router = express.Router();
 // All vendor order routes require authentication
 router.use(authMiddleware);
 
-router.get("/get",         getAllOrdersOfAllUsers);
-router.get("/stats",       getOrderStats);
-router.get("/details/:id", getOrderDetailsForVendor);
-router.put("/update/:id",  updateOrderStatus);
+router.get("/get",         apiRateLimiter, getAllOrdersOfAllUsers);
+router.get("/stats",       apiRateLimiter, getOrderStats);
+router.get("/details/:id", apiRateLimiter, getOrderDetailsForVendor);
+router.put("/update/:id",  apiRateLimiter, updateOrderStatus);
 
 module.exports = router;

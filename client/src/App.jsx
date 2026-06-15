@@ -7,6 +7,7 @@ import AdminDashboard from "./pages/admin-view/dashboard";
 import AdminVendors from "./pages/admin-view/vendors";
 import AdminOrders from "./pages/admin-view/orders";
 import AdminWithdrawals from "./pages/admin-view/withdrawals";
+import AdminSellerApplications from "./pages/admin-view/seller-applications";
 import VendorLayout from "./components/vendor-view/layout";
 import VendorDashboard from "./pages/vendor-view/dashboard";
 import VendorProducts from "./pages/vendor-view/products";
@@ -96,10 +97,11 @@ const location = useLocation();
             </CheckAuth>
           }
         >
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="vendors" element={<AdminVendors />} />
-          <Route path="orders" element={<AdminOrders />} />
-          <Route path="withdrawals" element={<AdminWithdrawals />} />
+          <Route path="dashboard"    element={<AdminDashboard />} />
+          <Route path="vendors"      element={<AdminVendors />} />
+          <Route path="orders"       element={<AdminOrders />} />
+          <Route path="withdrawals"  element={<AdminWithdrawals />} />
+          <Route path="seller-applications" element={<AdminSellerApplications />} />
         </Route>
 
         <Route

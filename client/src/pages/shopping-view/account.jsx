@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import AccountSidebar from "@/components/shopping-view/account/account-sidebar";
 import { fetchWishlist } from "@/store/shop/wishlist-slice";
 import { fetchCartItems } from "@/store/shop/cart-slice";
+import { getSellerStatus } from "@/store/shop/seller-slice";
 
 function ShoppingAccount() {
   const dispatch = useDispatch();
@@ -19,6 +20,8 @@ function ShoppingAccount() {
     if (userId) {
       dispatch(fetchWishlist(userId));
       dispatch(fetchCartItems(userId));
+      // Load seller status so sidebar and overview can show the right CTA
+      dispatch(getSellerStatus());
     }
   }, [dispatch, userId]);
 
@@ -34,7 +37,8 @@ function ShoppingAccount() {
     return <Navigate to="/auth/login" replace />;
   }
 
-  if (user?.role !== "user") {
+  // Allow both "user" AND "vendor" — vendors keep customer access
+  if (user?.role !== "user" && user?.role !== "vendor") {
     return <Navigate to="/unauth-page" replace />;
   }
 

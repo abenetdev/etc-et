@@ -1,4 +1,5 @@
 const express = require("express");
+const { apiRateLimiter } = require("../../middleware/rateLimiter");
 
 const {
   addProductReview,
@@ -7,7 +8,7 @@ const {
 
 const router = express.Router();
 
-router.post("/add", addProductReview);
-router.get("/:productId", getProductReviews);
+router.post("/add", apiRateLimiter, addProductReview);
+router.get("/:productId", apiRateLimiter, getProductReviews);
 
 module.exports = router;

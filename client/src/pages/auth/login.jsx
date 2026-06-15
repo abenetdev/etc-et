@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { loginUser } from "@/store/auth-slice";
@@ -6,12 +6,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, LogIn } from "lucide-react";
+import { Loader2, Eye, EyeOff, LogIn, Clock } from "lucide-react";
 
 function AuthLogin() {
   const [form, setForm]               = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]         = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   const dispatch    = useDispatch();
   const navigate    = useNavigate();
@@ -19,8 +21,27 @@ function AuthLogin() {
 
   const set = (field, val) => setForm((p) => ({ ...p, [field]: val }));
 
+  // Countdown timer for rate limit
+  useEffect(() => {
+    let interval;
+    if (rateLimited && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) {
+            setRateLimited(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [rateLimited, timeRemaining]);
+
   async function onSubmit(e) {
     e.preventDefault();
+    if (rateLimited) return;
+    
     setLoading(true);
     const data = await dispatch(loginUser(form));
     setLoading(false);
@@ -28,13 +49,31 @@ function AuthLogin() {
     if (data?.payload?.success) {
       toast({ title: "Welcome back!" });
     } else {
-      toast({
-        title:       "Login failed",
-        description: data?.payload?.message || "Check your credentials",
-        variant:     "destructive",
-      });
+      // Check if it's a rate limit error (429 status)
+      if (data?.error?.message?.includes("429") || data?.payload?.retryAfter) {
+        const retryAfter = data?.payload?.retryAfter || 900; // Default 15 minutes
+        setRateLimited(true);
+        setTimeRemaining(retryAfter);
+        toast({
+          title:       "Too many attempts",
+          description: `Please wait ${Math.ceil(retryAfter / 60)} minutes before trying again`,
+          variant:     "destructive",
+        });
+      } else {
+        toast({
+          title:       "Login failed",
+          description: data?.payload?.message || "Check your credentials",
+          variant:     "destructive",
+        });
+      }
     }
   }
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -86,20 +125,29 @@ function AuthLogin() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          {/* Rate limit countdown below password */}
+          {rateLimited && (
+            <div className="flex items-center gap-2 mt-2 text-amber-600 text-sm">
+              <Clock className="h-4 w-4" />
+              <span>Wait {formatTime(timeRemaining)} before trying again</span>
+            </div>
+          )}
         </div>
 
         {/* Submit */}
         <Button
           type="submit"
-          disabled={loading || !form.email || !form.password}
+          disabled={loading || rateLimited || (!rateLimited && (!form.email || !form.password))}
           className="w-full h-11 gap-2 text-sm font-medium mt-2"
         >
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : rateLimited ? (
+            <Clock className="h-4 w-4" />
           ) : (
             <LogIn className="h-4 w-4" />
           )}
-          {loading ? "Signing in…" : "Sign In"}
+          {loading ? "Signing in…" : rateLimited ? `Wait ${formatTime(timeRemaining)}` : "Sign In"}
         </Button>
       </form>
 

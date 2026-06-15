@@ -425,7 +425,10 @@ function ProductDetailPage() {
           </div>
 
           <div className="rounded-xl border p-5 space-y-4 h-fit">
-            <h3 className="font-semibold">Write a review</h3>
+            <div className="flex flex-col">
+               <h3 className="font-semibold">Write a review</h3>
+            <span className="text-[12px] text-red-500">Purchase the product before share your review!</span>
+            </div>
             {!isAuthenticated ? (
               <p className="text-sm text-muted-foreground">
                 <Link to="/auth/login" className="text-primary underline">
@@ -471,7 +474,6 @@ function ProductDetailPage() {
 
     </div>
   );
-  
 }
 
 export default ProductDetailPage;
